@@ -1,11 +1,9 @@
-import { Button, TouchableOpacity } from 'react-native';
-import { StyleSheet } from 'react-native';
+import { Button, StyleSheet } from 'react-native';
 
 import EditScreenInfo from '../../components/EditScreenInfo';
 import { Text, View } from '../../components/Themed';
 import { useAuthN } from '../../contexts/Auth/AuthNProvider';
 
-import { useAutoDiscoveryAuthN } from '../../contexts/Auth/AutoDiscoveryAuthNProvider';
 
 export default function TabOneScreen() {
 
@@ -21,7 +19,12 @@ export default function TabOneScreen() {
       <Button
         title="Login"
         disabled={!authN.request}
-        onPress={() => authN.promptAsync?.()}
+        onPress={() => authN.loginAsync?.()}
+      />
+      <Button
+        title="Logout"
+        disabled={!authN.isAuthenticated}
+        onPress={() => authN.logoutAsync?.()}
       />
 
       <Text>{authN.response?.type || authN.isAuthenticated ? "authenticated" : "unauthenticated"}</Text>

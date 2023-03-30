@@ -7,7 +7,8 @@ interface AuthNContext {
     expiresIn: number
     request: AuthRequest | null
     response: AuthSessionResult | null
-    promptAsync?: () => Promise<AuthSessionResult>
+    loginAsync?: () => Promise<AuthSessionResult>
+    logoutAsync?: () => Promise<boolean>
 }
 
 export const defaultState: AuthNContext = {
