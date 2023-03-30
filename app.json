@@ -1,22 +1,23 @@
 {
   "expo": {
     "name": "MySZVCompanion",
-    "slug": "MySZVCompanion",
+    "slug": "myszv-companion",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "myszvcompanion",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +28,22 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "532faac4-edb9-4ad4-8532-1e9722b4515a"
+      }
+    },
+    "owner": "aagarciga"
+  },
+  "azure": {
+    "ad": {
+      "tenantId": "92070d01-cbfb-4eae-a831-55a8f5fd3ea9",
+      "clientId": "041b6eb3-eae7-404f-9e94-72935fc291ed",
+      "policySignUpSignIn": "B2C_1_SIGN_UP_SIGN_IN",
+      "policySignIn": "B2C_1_SIGN_IN",
+      "scopes": ["openid", "offline_access"],
+      "domain": "myszvcompanion"
     }
   }
 }

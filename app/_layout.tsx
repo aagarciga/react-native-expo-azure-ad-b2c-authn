@@ -2,12 +2,14 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { SplashScreen, Stack } from 'expo-router';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import AutoDiscoveryAuthNProvider from '../contexts/Auth/AutoDiscoveryAuthNProvider';
+import * as WebBrowser from 'expo-web-browser';
+import AuthNProvider from '../contexts/Auth/AuthNProvider';
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
+  ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -36,16 +38,32 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+
+  /**
+   * This allows the browser app to pre-initialize itself in the background on Android.
+   * Doing this can significantly speed up prompting the user for authentication.
+   */
+  useEffect(() => {
+    WebBrowser.warmUpAsync()
+    return () => {
+      WebBrowser.coolDownAsync()
+    }
+  }, [])
+
   const colorScheme = useColorScheme();
 
   return (
     <>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        </Stack>
-      </ThemeProvider>
+      <AuthNProvider>
+        {/* <AutoDiscoveryAuthNProvider> */}
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          </Stack>
+        </ThemeProvider>
+        {/* </AutoDiscoveryAuthNProvider> */}
+      </AuthNProvider>
     </>
   );
 }
