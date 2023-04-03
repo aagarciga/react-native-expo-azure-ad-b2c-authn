@@ -8,7 +8,7 @@ interface AuthNContext {
     request: AuthRequest | null
     response: AuthSessionResult | null
     loginAsync?: () => Promise<AuthSessionResult>
-    logoutAsync?: () => Promise<boolean>
+    logoutAsync?: () => Promise<void>
 }
 
 export const defaultState: AuthNContext = {

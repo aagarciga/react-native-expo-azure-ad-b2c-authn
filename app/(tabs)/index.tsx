@@ -28,11 +28,12 @@ export default function TabOneScreen() {
       />
 
       <Text>{authN.isAuthenticated ? "authenticated" : "unauthenticated"}</Text>
-      <Text>Expires in around {Math.ceil(authN.expiresIn / 60)} min.</Text>
+
+      {authN.isAuthenticated && <Text>Expires in around {Math.ceil(authN.expiresIn / 60)} min.</Text>}
 
       <EditScreenInfo path="app/(tabs)/index.tsx" />
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({

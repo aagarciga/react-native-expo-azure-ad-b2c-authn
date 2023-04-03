@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AuthSession from 'expo-auth-session';
+import { TokenTypeHint } from 'expo-auth-session';
 import { Platform } from "expo-modules-core";
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { ReactNode, useContext, useEffect, useState } from "react";
 import config from '../../app.json';
 import AuthNContext, { defaultState } from "./AuthNContext";
+
 
 interface AuthNProviderProps {
     children: ReactNode
@@ -51,21 +53,15 @@ export default ({ children }: AuthNProviderProps) => {
     const [expiresIn, setExpiresIn] = useState(defaultState.expiresIn)
 
     async function logoutAsync() {
-        try {
-            let token
-            if (Platform.OS != 'web') {
-                [token] = await loadOnMobile()
-            } else {
-                [token] = await loadOnWeb()
-            }
-            return await AuthSession.revokeAsync({
-                clientId: config.azure.ad.clientId,
-                token: token?.toString() || ''
-            }, discoveryDocument)
-        } catch (error) {
-            console.error(error)
+        if (discoveryDocument.endSessionEndpoint) {
+
+            AuthSession.startAsync({
+                authUrl: `${discoveryDocument.endSessionEndpoint}?post_logout_redirect_uri=${encodeURIComponent('exp://localhost:19000/expo-auth-session')}`,
+            })
         }
-        return false
+        clearTokenData()
+        setExpiresIn(0)
+        setIsAuthenticated(false)
     }
 
     useEffect(() => {
@@ -133,7 +129,7 @@ export default ({ children }: AuthNProviderProps) => {
                         setIsAuthenticated(false)
                     }
                 } else {
-                    console.info("No values saved for access token")
+                    console.info("Seems like you are not logged in. No values saved for access token.")
                 }
             } catch (error) {
                 console.warn(error)
@@ -184,6 +180,14 @@ function saveTokenData(tokenResponse: AuthSession.TokenResponse) {
         }
     } else {
         throw new Error("After Code Exchange there is no accessToken, expiresIn or issuedAt values to be stored.")
+    }
+}
+
+function clearTokenData() {
+    if (Platform.OS != 'web') {
+        saveOnMobile('', Number(null), Number(null), '');
+    } else {
+        saveOnWeb('', Number(null), Number(null), '');
     }
 }
 
