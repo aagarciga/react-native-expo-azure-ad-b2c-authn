@@ -42,8 +42,13 @@
       "clientId": "041b6eb3-eae7-404f-9e94-72935fc291ed",
       "policySignUpSignIn": "B2C_1_SIGN_UP_SIGN_IN",
       "policySignIn": "B2C_1_SIGN_IN",
-      "scopes": ["openid", "offline_access"],
-      "domain": "myszvcompanion"
+      "scopes": [
+        "offline_access",
+        "openid",
+        "041b6eb3-eae7-404f-9e94-72935fc291ed"
+      ],
+      "domain": "myszvcompanion",
+      "refreshThreshold": 60
     }
   }
 }

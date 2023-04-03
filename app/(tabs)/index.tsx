@@ -18,7 +18,7 @@ export default function TabOneScreen() {
 
       <Button
         title="Login"
-        disabled={!authN.request}
+        disabled={authN.isAuthenticated}
         onPress={() => authN.loginAsync?.()}
       />
       <Button
@@ -27,8 +27,8 @@ export default function TabOneScreen() {
         onPress={() => authN.logoutAsync?.()}
       />
 
-      <Text>{authN.response?.type || authN.isAuthenticated ? "authenticated" : "unauthenticated"}</Text>
-      <Text>{authN.expiresIn}</Text>
+      <Text>{authN.isAuthenticated ? "authenticated" : "unauthenticated"}</Text>
+      <Text>Expires in around {Math.ceil(authN.expiresIn / 60)} min.</Text>
 
       <EditScreenInfo path="app/(tabs)/index.tsx" />
     </View>

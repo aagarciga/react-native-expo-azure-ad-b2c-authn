@@ -41,16 +41,14 @@ export default ({ children }: AuthNProviderProps) => {
     const [request, response, promptAsync] = AuthSession.useAuthRequest({
         clientId: config.azure.ad.clientId,
         scopes: config.azure.ad.scopes,
-        usePKCE: true,
+        responseType: AuthSession.ResponseType.Code,
         redirectUri: AuthSession.makeRedirectUri({
             scheme: config.expo.scheme
-        })
-
+        }),
     }, discoveryDocument)
 
     const [isAuthenticated, setIsAuthenticated] = useState(defaultState.isAuthenticated)
     const [expiresIn, setExpiresIn] = useState(defaultState.expiresIn)
-
 
     async function logoutAsync() {
         try {
@@ -71,8 +69,7 @@ export default ({ children }: AuthNProviderProps) => {
     }
 
     useEffect(() => {
-        console.log(request)
-        console.log(response)
+
         if (request && response && response.type == 'success') {
             try {
                 (async () => {
@@ -88,46 +85,58 @@ export default ({ children }: AuthNProviderProps) => {
                             scheme: config.expo.scheme
                         })
                     })
-                    let tokenResponse = await AuthSession.exchangeCodeAsync(accessTokenRequest, discoveryDocument)
-                    persistTokenResponseData(tokenResponse);
+                    let tokenResponse = await AuthSession
+                        .exchangeCodeAsync(accessTokenRequest, discoveryDocument)
+                    saveTokenData(tokenResponse)
                 })()
 
                 setIsAuthenticated(true)
             } catch (error) {
-                console.error(error)
+                console.info(error)
+                setIsAuthenticated(false)
             }
+        } else if (response?.type == 'error') {
+            console.info(response?.error)
+            setIsAuthenticated(false)
         }
+
     }, [response])
 
     useEffect(() => {
 
         (async () => {
-            let token, expiresIn, issuedAt, refreshToken
-            if (Platform.OS != 'web') {
-                [token, expiresIn, issuedAt, refreshToken] = await loadOnMobile()
-            } else {
-                [token, expiresIn, issuedAt, refreshToken] = await loadOnWeb()
-            }
-            setExpiresIn(typeof expiresIn == 'string' ? parseInt(expiresIn, 10) : expiresIn || 0)
-            const now = new Date().getTime() / 1000
-            const threshold = 3600000 // 1 hour in milliseconds
-            if (token && expiresIn && issuedAt) {
-                if (now < (typeof expiresIn == 'string'
-                    ? parseInt(expiresIn, 10)
-                    : expiresIn - threshold)) { // refresh access token if near to expire
-                    console.log("refreshing token")
-                    const tokenResponse: AuthSession.TokenResponse = await AuthSession.refreshAsync({
-                        clientId: config.azure.ad.clientId,
-                        refreshToken: refreshToken?.toString()
-                    }, discoveryDocument)
-                    persistTokenResponseData(tokenResponse)
-                } else if (now < (typeof expiresIn == 'string'
-                    ? parseInt(expiresIn, 10)
-                    : expiresIn)) { // access token not expired
-                    setIsAuthenticated(true)
-                } else { // access token expired
-                    setIsAuthenticated(false)
+
+            try {
+                const [token, expiresIn, issuedAt, refreshToken] = await loadTokenData()
+
+                if (token && expiresIn && issuedAt) {
+                    const now = new Date().getTime() / 1000 //Seconds
+                    const threshold = config.azure.ad.refreshThreshold // Seconds
+                    const expires = calculateExpiration(Number(issuedAt), Number(expiresIn), now)
+                    setExpiresIn(expires)
+
+                    if (now < (Number(issuedAt) + Number(expiresIn))) { // access token not expired
+                        if (now > (Number(issuedAt) + Number(expiresIn) - threshold)) { // refresh access token if near to expire
+                            console.info("Refreshing ACCESS TOKEN:", token)
+                            console.info("with refresh token:", refreshToken)
+                            const tokenResponse: AuthSession.TokenResponse = await AuthSession.refreshAsync({
+                                clientId: config.azure.ad.clientId,
+                                refreshToken: refreshToken?.toString()
+                            }, discoveryDocument)
+                            saveTokenData(tokenResponse)
+                        } else {
+                            console.info("Access Token valid for ", expires / 60, "minute(s).")
+                        }
+                        setIsAuthenticated(true)
+                    } else { // access token expired
+                        console.info("Access Token EXPIRED", issuedAt, now)
+                        setIsAuthenticated(false)
+                    }
+                } else {
+                    console.info("No values saved for access token")
                 }
+            } catch (error) {
+                console.warn(error)
             }
         })()
     }, [])
@@ -151,47 +160,17 @@ export const useAuthN = () => {
     return context
 }
 
-async function saveOnWeb(token: string, expiresIn: number, issuedAt: number, refreshToken: string) {
-    await AsyncStorage.setItem(STORE_KEY_TOKEN, token);
-    await AsyncStorage.setItem(STORE_KEY_EXPIRES_IN, expiresIn.toString());
-    await AsyncStorage.setItem(STORE_KEY_ISSUED_AT, issuedAt.toString());
-    await AsyncStorage.setItem(STORE_KEY_TOKEN_REFRESH, refreshToken);
+async function loadTokenData(): Promise<[string | null, number, number, string | null]> {
+    return Platform.OS == 'web'
+        ? await loadOnWeb()
+        : await loadOnMobile();
 }
 
-function saveOnMobile(token: string, expiresIn: number, issuedAt: number, refreshToken: string) {
-    SecureStore.setItemAsync(STORE_KEY_TOKEN, token);
-    SecureStore.setItemAsync(STORE_KEY_EXPIRES_IN, expiresIn.toString());
-    SecureStore.setItemAsync(STORE_KEY_ISSUED_AT, issuedAt.toString());
-    SecureStore.setItemAsync(STORE_KEY_TOKEN_REFRESH, refreshToken);
-}
-
-async function loadOnWeb(): Promise<(string | number | null)[]> {
-    const token = await AsyncStorage.getItem(STORE_KEY_TOKEN);
-    const expiresIn = await AsyncStorage.getItem(STORE_KEY_EXPIRES_IN);
-    const issuedAt = await AsyncStorage.getItem(STORE_KEY_ISSUED_AT);
-    const refreshToken = await AsyncStorage.getItem(STORE_KEY_TOKEN_REFRESH);
-    return [
-        token,
-        expiresIn != null ? parseInt(expiresIn, 10) : null,
-        issuedAt != null ? parseInt(issuedAt, 10) : null,
-        refreshToken
-    ];
-}
-
-async function loadOnMobile() {
-    const token = await SecureStore.getItemAsync(STORE_KEY_TOKEN);
-    const expiresIn = await SecureStore.getItemAsync(STORE_KEY_EXPIRES_IN);
-    const issuedAt = await SecureStore.getItemAsync(STORE_KEY_ISSUED_AT);
-    const refreshToken = await SecureStore.getItemAsync(STORE_KEY_TOKEN_REFRESH);
-    return [
-        token,
-        expiresIn != null ? parseInt(expiresIn, 10) : null,
-        issuedAt != null ? parseInt(issuedAt, 10) : null,
-        refreshToken
-    ];
-}
-
-function persistTokenResponseData(tokenResponse: AuthSession.TokenResponse) {
+/**
+ * Persist access token related info on local storage for Web, Android and iOs platforms
+ * @param tokenResponse 
+ */
+function saveTokenData(tokenResponse: AuthSession.TokenResponse) {
     const accessToken = tokenResponse.accessToken;
     const expiresIn = tokenResponse.expiresIn;
     const issuedAt = tokenResponse.issuedAt;
@@ -204,6 +183,80 @@ function persistTokenResponseData(tokenResponse: AuthSession.TokenResponse) {
             saveOnWeb(accessToken, expiresIn, issuedAt, refreshToken);
         }
     } else {
-        console.error("After Code Exchange there is no accessToken, expiresIn or issuedAt values to be stored.");
+        throw new Error("After Code Exchange there is no accessToken, expiresIn or issuedAt values to be stored.")
     }
+}
+
+/**
+ * 
+ * @param issuedAt token issue time in seconds
+ * @param expiresIn token expiration time in seconds
+ * @param now current time in seconds
+ * @returns 
+ */
+function calculateExpiration(issuedAt: number, expiresIn: number, now: number): number {
+    return (issuedAt + expiresIn - now);
+}
+
+/**
+ * Persists the access token related info using AyncStorage for Web Platforms.
+ * (This is an unsafe persistent storage)
+ * @param token 
+ * @param expiresIn 
+ * @param issuedAt 
+ * @param refreshToken 
+ */
+async function saveOnWeb(token: string, expiresIn: number, issuedAt: number, refreshToken: string) {
+    await AsyncStorage.setItem(STORE_KEY_TOKEN, token);
+    await AsyncStorage.setItem(STORE_KEY_EXPIRES_IN, expiresIn.toString());
+    await AsyncStorage.setItem(STORE_KEY_ISSUED_AT, issuedAt.toString());
+    await AsyncStorage.setItem(STORE_KEY_TOKEN_REFRESH, refreshToken);
+}
+
+/**
+ * Persist the access token related info using SecureStore for Android and iOs.
+ * @param token 
+ * @param expiresIn 
+ * @param issuedAt 
+ * @param refreshToken 
+ */
+function saveOnMobile(token: string, expiresIn: number, issuedAt: number, refreshToken: string) {
+    SecureStore.setItemAsync(STORE_KEY_TOKEN, token);
+    SecureStore.setItemAsync(STORE_KEY_EXPIRES_IN, expiresIn.toString());
+    SecureStore.setItemAsync(STORE_KEY_ISSUED_AT, issuedAt.toString());
+    SecureStore.setItemAsync(STORE_KEY_TOKEN_REFRESH, refreshToken);
+}
+
+/**
+ * Load from the local web client storage the token related info in an array format ready for decontruction.
+ * @returns An array for decomposing the access token related info
+ */
+async function loadOnWeb(): Promise<[string | null, number, number, string | null]> {
+    const token = await AsyncStorage.getItem(STORE_KEY_TOKEN);
+    const expiresIn = await AsyncStorage.getItem(STORE_KEY_EXPIRES_IN);
+    const issuedAt = await AsyncStorage.getItem(STORE_KEY_ISSUED_AT);
+    const refreshToken = await AsyncStorage.getItem(STORE_KEY_TOKEN_REFRESH);
+    return [
+        token,
+        Number(expiresIn),
+        Number(issuedAt),
+        refreshToken
+    ];
+}
+
+/**
+ * 
+ * @returns Load from the secure local client storage for Android and iOs platforms
+ */
+async function loadOnMobile(): Promise<[string | null, number, number, string | null]> {
+    const token = await SecureStore.getItemAsync(STORE_KEY_TOKEN);
+    const expiresIn = await SecureStore.getItemAsync(STORE_KEY_EXPIRES_IN);
+    const issuedAt = await SecureStore.getItemAsync(STORE_KEY_ISSUED_AT);
+    const refreshToken = await SecureStore.getItemAsync(STORE_KEY_TOKEN_REFRESH);
+    return [
+        token,
+        Number(expiresIn),
+        Number(issuedAt),
+        refreshToken
+    ];
 }
