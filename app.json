@@ -48,7 +48,8 @@
         "041b6eb3-eae7-404f-9e94-72935fc291ed"
       ],
       "domain": "myszvcompanion",
-      "refreshThreshold": 60
+      "refreshThreshold": 60,
+      "postLogoutRedirectURI": "exp://localhost:19000/expo-auth-session"
     }
   }
 }

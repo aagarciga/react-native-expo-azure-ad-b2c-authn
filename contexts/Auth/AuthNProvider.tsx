@@ -1,13 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AuthSession from 'expo-auth-session';
-import { TokenTypeHint } from 'expo-auth-session';
 import { Platform } from "expo-modules-core";
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { ReactNode, useContext, useEffect, useState } from "react";
 import config from '../../app.json';
 import AuthNContext, { defaultState } from "./AuthNContext";
-
 
 interface AuthNProviderProps {
     children: ReactNode
@@ -56,7 +54,7 @@ export default ({ children }: AuthNProviderProps) => {
         if (discoveryDocument.endSessionEndpoint) {
 
             AuthSession.startAsync({
-                authUrl: `${discoveryDocument.endSessionEndpoint}?post_logout_redirect_uri=${encodeURIComponent('exp://localhost:19000/expo-auth-session')}`,
+                authUrl: `${discoveryDocument.endSessionEndpoint}?post_logout_redirect_uri=${encodeURIComponent(config.azure.ad.postLogoutRedirectURI)}`,
             })
         }
         clearTokenData()
@@ -125,7 +123,7 @@ export default ({ children }: AuthNProviderProps) => {
                         }
                         setIsAuthenticated(true)
                     } else { // access token expired
-                        console.info("Access Token EXPIRED", issuedAt, now)
+                        console.info("Access Token EXPIRED")
                         setIsAuthenticated(false)
                     }
                 } else {
